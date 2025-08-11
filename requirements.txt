@@ -1,3 +1,5 @@
 kaggle
 pandas
 scikit-learn
+pydicom
+Pillow

@@ -1,30 +1,42 @@
 import os
 import shutil
 import zipfile
+import pandas as pd
+import pydicom
+from PIL import Image
+from sklearn.model_selection import train_test_split
 from kaggle.api.kaggle_api_extended import KaggleApi
-
-os.system('pip install kaggle pandas scikit-learn --quiet')
-
-
-kaggle_secret_content = os.environ.get('KAGGLE_JSON')
-
-if not kaggle_secret_content:
-    raise ValueError("KAGGLE_JSON secret not found. Please add it to your repository settings.")
-
-kaggle_dir = os.path.join(os.path.expanduser('~'), '.kaggle')
-os.makedirs(kaggle_dir, exist_ok=True)
-kaggle_json_path = os.path.join(kaggle_dir, 'kaggle.json')
-
-with open(kaggle_json_path, 'w') as f:
-    f.write(kaggle_secret_content)
-
-os.chmod(kaggle_json_path, 0o600)
 
 api = KaggleApi()
 api.authenticate()
 
-api.dataset_download_files('kmader/skin-cancer-mnist-ham10000', path='.', quiet=True)
+api.competition_download_files('isic-2024-challenge', path='.', quiet=False)
 
-zip_filename = 'skin-cancer-mnist-ham10000.zip'
-with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
+with zipfile.ZipFile('isic-2024-challenge.zip', 'r') as zip_ref:
     zip_ref.extractall('.')
+
+if os.path.exists('train-image.zip'):
+    with zipfile.ZipFile('train-image.zip', 'r') as zip_ref:
+        zip_ref.extractall('train-image')
+
+print("--- Download and Unzip Complete ---")
+
+dicom_dir = os.path.join('train-image', 'image')
+png_dir = 'isic2024_png_images'
+os.makedirs(png_dir, exist_ok=True)
+
+def convert_dicom_to_png(dicom_path, png_path):
+    try:
+        dicom_file = pydicom.dcmread(dicom_path)
+        pixel_array = dicom_file.pixel_array
+        image = Image.fromarray(pixel_array)
+        image.save(png_path)
+        return True
+    except Exception as e:
+        return False
+
+for filename in os.listdir(dicom_dir):
+    if filename.endswith('.dcm'):
+        dicom_path = os.path.join(dicom_dir, filename)
+        png_path = os.path.join(png_dir, os.path.splitext(filename)[0] + '.png')
+        convert_dicom_to_png(dicom_path, png_path)
